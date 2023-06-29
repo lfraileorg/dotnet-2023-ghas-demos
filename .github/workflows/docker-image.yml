@@ -1,0 +1,39 @@
+name: Build Docker
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    env:      
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+      
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag demoghas:latest
+
+    - name: Set up Snyk CLI to check for security issues
+      uses: snyk/actions/setup@master
+
+    - run: |
+        snyk container test demoghas:latest --file=Dockerfile --sarif-file-output=snyk-results.sarif      
+      continue-on-error: true
+           
+    - name: Upload result to GitHub Code Scanning
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: snyk-results.sarif
+      if: always()
